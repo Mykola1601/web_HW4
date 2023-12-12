@@ -5,9 +5,16 @@ import urllib.parse
 import mimetypes
 import threading
 import pathlib
+import logging
 import socket
 import pickle
 import json
+
+logger = logging.getLogger()
+stream_handler = logging.StreamHandler()
+logger.addHandler(stream_handler)
+logger.setLevel(logging.DEBUG)
+
 
 class HttpHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -122,7 +129,7 @@ def client_sender(host, port, message = None):
 
 if __name__ == '__main__':
 
-    FILE_NAME = 'data.json'
+    FILE_NAME = 'front-init/storage/data.json'
     HOST = '127.0.0.1'
     PORT = 5000
 
