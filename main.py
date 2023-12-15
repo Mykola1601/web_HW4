@@ -1,6 +1,7 @@
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from time import sleep
+from datetime import datetime
+# from time import sleep
 import urllib.parse
 import mimetypes
 import threading
@@ -32,20 +33,16 @@ class HttpHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         data = self.rfile.read(int(self.headers['Content-Length']))
-        # print(data)
         data_parse = urllib.parse.unquote_plus(data.decode())
-        # print(data_parse)
         data_dict = {key: value for key, value in [
             el.split('=') for el in data_parse.split('&')]}
-        print(f'from post {data_dict}')
+        # print(f'from "POST" {data_dict}')
         self.send_response(302)
         self.send_header('Location', '/')
         self.end_headers()
 
-        client = threading.Thread(target=client_sender, args=(HOST, PORT, data_dict))
-        client.start()
-
-        # client_sender(HOST, PORT, data_dict)
+        client1 = threading.Thread(target=client_sender, args=(HOST, PORT, data_dict ))
+        client1.start()
 
 
     def send_static(self):
@@ -78,53 +75,47 @@ def run(server_class=HTTPServer, handler_class=HttpHandler):
 
 
 def save_data(data):
-    print('start saving')
-    with open(FILE_NAME, "a") as fh:
-        json.dump(data, fh)
-        fh.write(",\n")
-    # return
+    users = {}
+    with open(FILE_NAME, "r") as fh:
+        file = fh.read()
+        if file:
+            users = json.loads(file)
+    with open(FILE_NAME, "w") as fh:
+        users[str(datetime.now())] = data
+        fh.write(json.dumps(users, indent=2))
 
 
 def server_save(host, port):
     with socket.socket() as s:
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((host, port))
-        s.listen(2)
+        s.listen(1)
         conn, addr = s.accept()
         print(f"Connected by {addr}")
         with conn:
             while True:
                 data = conn.recv(1024)
-                if len(data) < 5:
-                    # conn.send(b'1')
-                    break
-                data = pickle.loads(data)
-                print(f'From client: {data}')
-                save_data(data)
-                print('writen')
-                # break
-                # conn.send(b'0')
-                
+                if data:
+                    data = pickle.loads(data)
+                    print(f'From client: {data}')
+                    conn.send(b"recived")
+                    save_data(data=data)
+                    data = None
+                else:
+                    s.close()
+                    server_save(host, port)
+                        
 
 
-def client_sender(host, port, message = None):
-    if not message:
-        return
-    message = pickle.dumps(message)
+
+def client_sender(host, port, message : str =None  ):
     with socket.socket() as s:
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        print('in client')
-        while True:
-            try:
-                s.connect((host, port))
-                s.sendall( message )
-                data = s.recv(1024)
-                print(f'From server: {data}')
-                break
-            except ConnectionRefusedError:
-                print('exeption')
-                sleep(1)
-                break
+        try:
+            s.connect((host, port))
+            s.sendall(  pickle.dumps(message) )
+            data = s.recv(1024)
+            print(f'From server: {data}')
+        except ConnectionRefusedError:
+            print('client exept')
 
 
 if __name__ == '__main__':
@@ -132,14 +123,9 @@ if __name__ == '__main__':
     FILE_NAME = 'front-init/storage/data.json'
     HOST = '127.0.0.1'
     PORT = 5000
+    users = {}
 
     server = threading.Thread(target=server_save, args=(HOST, PORT))
-    # client = threading.Thread(target=client_sender, args=(HOST, PORT))
-
     server.start()
-    # client.start()
-    # server.join()
-    # client.join()
-    # print('Done!')
 
     run()
