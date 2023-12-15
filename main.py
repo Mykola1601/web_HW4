@@ -1,7 +1,6 @@
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
-# from time import sleep
 import urllib.parse
 import mimetypes
 import threading
@@ -105,8 +104,6 @@ def server_save(host, port):
                     server_save(host, port)
                         
 
-
-
 def client_sender(host, port, message : str =None  ):
     with socket.socket() as s:
         try:
@@ -126,6 +123,7 @@ if __name__ == '__main__':
     users = {}
 
     server = threading.Thread(target=server_save, args=(HOST, PORT))
+    http = threading.Thread(target=run)
     server.start()
+    http.start()
 
-    run()
