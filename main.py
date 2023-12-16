@@ -1,9 +1,10 @@
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
+from threading import Thread
 import urllib.parse
 import mimetypes
-import threading
+# import threading
 import pathlib
 import logging
 import socket
@@ -35,14 +36,11 @@ class HttpHandler(BaseHTTPRequestHandler):
         data_parse = urllib.parse.unquote_plus(data.decode())
         data_dict = {key: value for key, value in [
             el.split('=') for el in data_parse.split('&')]}
-        # print(f'from "POST" {data_dict}')
         self.send_response(302)
         self.send_header('Location', '/')
         self.end_headers()
 
-        client1 = threading.Thread(target=client_sender, args=(HOST, PORT, data_dict ))
-        client1.start()
-
+        thread2.send(message=data_dict)
 
     def send_static(self):
         self.send_response(200)
@@ -83,47 +81,81 @@ def save_data(data):
         users[str(datetime.now())] = data
         fh.write(json.dumps(users, indent=2))
 
+    dir = pathlib.Path('/storage')
+    if not dir.exists():
+        pathlib.Path.mkdir(dir)
+        print("Dir created")
+    f = pathlib.Path(VOLUME)
+    if f.exists():
+        with open(VOLUME, "r") as fh:
+            file = fh.read()
+            if file:
+                users = json.loads(file)
+        with open(VOLUME, "w") as fh:
+            users[str(datetime.now())] = data
+            fh.write(json.dumps(users, indent=2))
+    else:
+        with open(VOLUME, "w") as fh:
+            users[str(datetime.now())] = data
+            fh.write(json.dumps(users, indent=2))
 
-def server_save(host, port):
-    with socket.socket() as s:
-        s.bind((host, port))
-        s.listen(1)
-        conn, addr = s.accept()
-        print(f"Connected by {addr}")
-        with conn:
-            while True:
-                data = conn.recv(1024)
-                if data:
-                    data = pickle.loads(data)
-                    print(f'From client: {data}')
-                    conn.send(b"recived")
-                    save_data(data=data)
-                    data = None
-                else:
-                    s.close()
-                    server_save(host, port)
-                        
+class ServerSocket():
+    def __init__(self, host, port ):
+        self.host = host
+        self.port = port
+        self.s = socket.socket()
+        self.s.bind((self.host, self.port))
+        self.s.listen(1)
+        # print('server started')
 
-def client_sender(host, port, message : str =None  ):
-    with socket.socket() as s:
-        try:
-            s.connect((host, port))
-            s.sendall(  pickle.dumps(message) )
-            data = s.recv(1024)
-            print(f'From server: {data}')
-        except ConnectionRefusedError:
-            print('client exept')
+    def __call__(self) :
+        self.conn, self.addr = self.s.accept()
+        print(f"Connected by {self.addr}")
+        while True:
+            data = self.conn.recv(1024)
+            if data:
+                data = pickle.loads(data)
+                print(f'From client: {data}')
+                self.conn.send(b"recived")
+                save_data(data=data)
+                data = None
+
+
+class ClientSocket():
+    def __init__(self,host,port) -> None:
+        self.host = host
+        self.port = port
+       
+    def __call__(self) :
+        self.s = socket.socket()
+        self.s.connect((self.host, self.port))
+        print('client conected')
+
+    def send(self, message):
+        self.s.sendall(pickle.dumps(message))
+        # print(f'client send: {message}')
+        data = self.s.recv(1024)
+        print(f'From server: {data}')
 
 
 if __name__ == '__main__':
-
+    print('starting')
     FILE_NAME = 'front-init/storage/data.json'
+    VOLUME = '/storage/data.json'
     HOST = '127.0.0.1'
     PORT = 5000
     users = {}
 
-    server = threading.Thread(target=server_save, args=(HOST, PORT))
-    http = threading.Thread(target=run)
-    server.start()
-    http.start()
+    thread1 = ServerSocket(HOST, PORT)
+    thread = Thread(target = thread1)
+    thread.start()
+
+    thread2 = ClientSocket(HOST, PORT)
+    thread = Thread(target=thread2)
+    thread.start()
+
+    # print('run')
+    run()
+
+#  docker  container run -it --name HW4  -p 3000:3000  -d 7bd
 

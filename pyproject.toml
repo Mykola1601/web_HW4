@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "web-hw4"
+version = "0.1.0"
+description = ""
+authors = ["Mykola1601 <nik160186@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+aiosqlite = "^0.19.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

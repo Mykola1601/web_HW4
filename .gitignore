@@ -1,0 +1,11 @@
+**/__pycache__
+.git
+.vscode/*
+**/test_folder
+virtemv/
+venv/
+Scripts/
+pyvenv.cfg
+pipfile*
+Include/
+Lib/
